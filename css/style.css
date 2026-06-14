@@ -253,8 +253,7 @@ input, textarea {
 }
 .site-header.is-scrolled {
   padding: 10px 0;
-  background: rgba(13, 10, 12, .82);
-  backdrop-filter: blur(14px);
+  background: var(--bg);
   box-shadow: 0 12px 30px -20px rgba(0,0,0,.8);
   border-bottom: 1px solid var(--line);
 }
