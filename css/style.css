@@ -5,6 +5,7 @@
 
 :root {
   /* Palette */
+  color-scheme: dark;
   --bg:        #0d0a0c;
   --bg-soft:   #16111a;
   --bg-card:   #1d1620;
