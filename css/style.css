@@ -896,8 +896,8 @@ input, textarea {
   margin-bottom: 20px;
 }
 .info-card h3 { font-size: 1.2rem; margin-bottom: 1em; }
-.info-list { display: flex; flex-direction: column; gap: 1.1em; }
-.info-list li { display: flex; flex-direction: column; gap: .3em; font-size: .95rem; }
+.info-list { display: flex; flex-direction: column; gap: 1.5em; }
+.info-list li { display: flex; flex-direction: column; gap: .5em; font-size: .95rem; line-height: 1.55; }
 .info-list__label {
   font-size: .75rem;
   letter-spacing: .12em;
