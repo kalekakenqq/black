@@ -4,8 +4,9 @@ import secrets
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
@@ -115,6 +116,73 @@ def parse_browser(ua: str) -> str:
     return "Другой"
 
 
+def parse_source(ref: str) -> str:
+    ref = (ref or "").lower()
+    if not ref:
+        return "Напрямую"
+    if "yandex." in ref or "ya.ru" in ref:
+        return "Яндекс"
+    if "google." in ref:
+        return "Google"
+    if "t.me" in ref or "telegram" in ref:
+        return "Telegram"
+    if "whatsapp" in ref or "wa.me" in ref:
+        return "WhatsApp"
+    try:
+        netloc = urlparse(ref).netloc or ref
+        return netloc.replace("www.", "")
+    except Exception:
+        return "Другое"
+
+
+def breakdown_rows(items, total: int) -> str:
+    if not items:
+        return '<div class="bd-row bd-empty">Пока нет данных</div>'
+    rows = ""
+    for label, count in items:
+        pct = round(count / total * 100) if total else 0
+        rows += (
+            '<div class="bd-row">'
+            f'<span class="bd-label">{html.escape(str(label))}</span>'
+            f'<div class="bd-bar"><div class="bd-fill" style="width:{pct}%"></div></div>'
+            f'<span class="bd-pct">{pct}%</span>'
+            "</div>"
+        )
+    return rows
+
+
+@app.get("/admin/export.csv", include_in_schema=False)
+async def export_csv(user: str = Depends(check_auth)):
+    import csv
+    import io
+
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT ts, ip, user_agent, referer, path FROM visits ORDER BY id"
+    ).fetchall()
+    conn.close()
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["время (МСК)", "ip", "устройство", "браузер", "источник", "страница"])
+    for ts, ip, ua, ref, path in rows:
+        dt = datetime.fromisoformat(ts).astimezone(MSK)
+        writer.writerow([
+            dt.strftime("%Y-%m-%d %H:%M:%S"),
+            ip or "",
+            parse_device(ua),
+            parse_browser(ua),
+            parse_source(ref),
+            path or "",
+        ])
+
+    return Response(
+        content="\ufeff" + buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=visits.csv"},
+    )
+
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin(user: str = Depends(check_auth)):
     conn = get_db()
@@ -124,6 +192,7 @@ async def admin(user: str = Depends(check_auth)):
     today_start_msk = datetime.combine(now_msk.date(), datetime.min.time(), tzinfo=MSK)
     today_start_utc = today_start_msk.astimezone(timezone.utc)
     week_start_utc = now_utc - timedelta(days=7)
+    prev_week_start_utc = now_utc - timedelta(days=14)
 
     total = conn.execute("SELECT COUNT(*) FROM visits").fetchone()[0]
     today = conn.execute(
@@ -132,6 +201,17 @@ async def admin(user: str = Depends(check_auth)):
     week = conn.execute(
         "SELECT COUNT(*) FROM visits WHERE ts >= ?", (week_start_utc.isoformat(),)
     ).fetchone()[0]
+    prev_week = conn.execute(
+        "SELECT COUNT(*) FROM visits WHERE ts >= ? AND ts < ?",
+        (prev_week_start_utc.isoformat(), week_start_utc.isoformat()),
+    ).fetchone()[0]
+
+    if prev_week > 0:
+        delta_pct = round((week - prev_week) / prev_week * 100)
+    elif week > 0:
+        delta_pct = 100
+    else:
+        delta_pct = 0
 
     # Visits by hour, today (Moscow time)
     rows_today = conn.execute(
@@ -155,6 +235,26 @@ async def admin(user: str = Depends(check_auth)):
         ).fetchone()[0]
         days.append((day.strftime("%d.%m"), cnt))
     max_day = max((c for _, c in days), default=0) or 1
+
+    # Sources, devices, browsers — last 7 days
+    rows_week = conn.execute(
+        "SELECT user_agent, referer FROM visits WHERE ts >= ?", (week_start_utc.isoformat(),)
+    ).fetchall()
+    source_counts: dict[str, int] = {}
+    device_counts: dict[str, int] = {}
+    browser_counts: dict[str, int] = {}
+    for ua, ref in rows_week:
+        src = parse_source(ref)
+        source_counts[src] = source_counts.get(src, 0) + 1
+        dev = parse_device(ua)
+        device_counts[dev] = device_counts.get(dev, 0) + 1
+        br = parse_browser(ua)
+        browser_counts[br] = browser_counts.get(br, 0) + 1
+
+    week_total = len(rows_week) or 1
+    top_sources = sorted(source_counts.items(), key=lambda x: -x[1])[:5]
+    top_devices = sorted(device_counts.items(), key=lambda x: -x[1])
+    top_browsers = sorted(browser_counts.items(), key=lambda x: -x[1])[:5]
 
     # Recent visits
     recent = conn.execute(
@@ -186,6 +286,20 @@ async def admin(user: str = Depends(check_auth)):
         for d, c in days
     )
     day_labels = "".join(f"<span>{d}</span>" for d, _ in days)
+
+    source_rows = breakdown_rows(top_sources, week_total)
+    device_rows = breakdown_rows(top_devices, week_total)
+    browser_rows = breakdown_rows(top_browsers, week_total)
+
+    if delta_pct > 0:
+        delta_label = f"+{delta_pct}% к прошлой неделе"
+        delta_class = "up"
+    elif delta_pct < 0:
+        delta_label = f"{delta_pct}% к прошлой неделе"
+        delta_class = "down"
+    else:
+        delta_label = "как на прошлой неделе"
+        delta_class = ""
 
     page_html = f"""<!DOCTYPE html>
 <html lang="ru">
@@ -252,16 +366,38 @@ async def admin(user: str = Depends(check_auth)):
   th {{ color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: .7rem; letter-spacing: .06em; }}
   td.src {{ color: var(--text-muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
   td.empty {{ color: var(--text-muted); text-align: center; padding: 20px; }}
+  .kpi .delta {{ font-size: .75rem; margin-top: 2px; }}
+  .kpi .delta.up {{ color: #7bc88a; }}
+  .kpi .delta.down {{ color: var(--red); }}
+  .bd-row {{
+    display: flex; align-items: center; gap: 10px;
+    font-size: .85rem; padding: 5px 0;
+  }}
+  .bd-label {{ flex: 0 0 110px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+  .bd-bar {{ flex: 1; height: 6px; background: rgba(233,217,182,.1); border-radius: 4px; overflow: hidden; }}
+  .bd-fill {{ height: 100%; background: linear-gradient(90deg, var(--gold), var(--red)); border-radius: 4px; }}
+  .bd-pct {{ flex: 0 0 38px; text-align: right; color: var(--text-muted); font-size: .8rem; }}
+  .bd-empty {{ color: var(--text-muted); }}
+  .export {{
+    display: inline-block; margin-bottom: 24px; padding: 8px 16px;
+    border: 1px solid var(--line); border-radius: 8px; color: var(--gold-soft);
+    text-decoration: none; font-size: .85rem;
+  }}
+  .export:hover {{ border-color: var(--gold); }}
 </style>
 </head>
 <body>
   <h1>Black &amp; Red — Админ-панель</h1>
   <div class="updated">Обновлено: {now_msk.strftime('%d.%m.%Y %H:%M')} (МСК) · автообновление каждую минуту</div>
+  <a class="export" href="/admin/export.csv">Скачать визиты (CSV)</a>
 
   <div class="kpis">
     <div class="kpi"><div class="num">{total}</div><div class="label">Всего визитов</div></div>
     <div class="kpi"><div class="num">{today}</div><div class="label">Сегодня</div></div>
-    <div class="kpi"><div class="num">{week}</div><div class="label">За 7 дней</div></div>
+    <div class="kpi">
+      <div class="num">{week}</div><div class="label">За 7 дней</div>
+      <div class="delta {delta_class}">{delta_label}</div>
+    </div>
   </div>
 
   <div class="panels">
@@ -274,6 +410,21 @@ async def admin(user: str = Depends(check_auth)):
       <h2>Визиты за 7 дней</h2>
       <div class="chart">{day_bars}</div>
       <div class="chart-labels">{day_labels}</div>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h2>Источники (7 дней)</h2>
+      {source_rows}
+    </div>
+    <div class="panel">
+      <h2>Устройства (7 дней)</h2>
+      {device_rows}
+    </div>
+    <div class="panel">
+      <h2>Браузеры (7 дней)</h2>
+      {browser_rows}
     </div>
   </div>
 
