@@ -126,6 +126,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'ArrowRight') openLightbox(currentIndex + 1);
   });
 
+  /* ---------- Hide FAB over footer ---------- */
+  const fab = document.querySelector('.fab');
+  const footer = document.querySelector('.footer');
+  if (fab && footer && 'IntersectionObserver' in window) {
+    const fabObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        fab.classList.toggle('is-hidden', entry.isIntersecting);
+      });
+    });
+    fabObserver.observe(footer);
+  }
+
   /* ---------- Booking form -> WhatsApp ---------- */
   const bookingForm = document.getElementById('bookingForm');
   const formHint = document.getElementById('formHint');
