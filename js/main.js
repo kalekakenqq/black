@@ -133,27 +133,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (bookingForm) {
     const dateInput = bookingForm.querySelector('[name="date"]');
-    const timeInput = bookingForm.querySelector('[name="time"]');
 
     const maskDate = (value) => {
       const digits = value.replace(/\D/g, '').slice(0, 8);
       return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)]
         .filter(Boolean).join('.');
     };
-    const maskTime = (value) => {
-      const digits = value.replace(/\D/g, '').slice(0, 4);
-      return [digits.slice(0, 2), digits.slice(2, 4)]
-        .filter(Boolean).join(':');
-    };
 
     if (dateInput) {
       dateInput.addEventListener('input', () => {
         dateInput.value = maskDate(dateInput.value);
-      });
-    }
-    if (timeInput) {
-      timeInput.addEventListener('input', () => {
-        timeInput.value = maskTime(timeInput.value);
       });
     }
 
