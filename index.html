@@ -645,7 +645,14 @@
       <div class="container booking__grid">
         <div class="booking__form-wrap" data-reveal>
           <p class="eyebrow"><span class="eyebrow__num">Часть VII</span> Бронирование</p>
-          <h2 class="section-title">Забронировать стол</h2>
+          <h2 class="section-title">Забронировать</h2>
+
+          <div class="booking__tabs" role="tablist" data-reveal>
+            <button class="booking__tab is-active" role="tab" aria-selected="true" data-btab="table">Стол</button>
+            <button class="booking__tab" role="tab" aria-selected="false" data-btab="banquet">Банкет и аренда зала</button>
+          </div>
+
+          <div class="booking__panel" data-bpanel="table">
           <p class="section-lead">
             Оставьте заявку — мы свяжемся и подтвердим стол. Или сразу напишите нам в WhatsApp.
           </p>
@@ -686,6 +693,68 @@
             </div>
             <p class="form__hint" id="formHint"></p>
           </form>
+          </div>
+
+          <div class="booking__panel" data-bpanel="banquet" hidden>
+          <p class="section-lead">
+            Организуем день рождения, корпоратив или закрытое мероприятие — оставьте заявку, мы посчитаем варианты и свяжемся с вами.
+          </p>
+
+          <form class="booking__form" id="banquetForm">
+            <div class="form__row">
+              <label class="form__field">
+                <span>Имя</span>
+                <input type="text" name="name" placeholder="Как к вам обращаться" required>
+              </label>
+              <label class="form__field">
+                <span>Телефон</span>
+                <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required>
+              </label>
+            </div>
+            <div class="form__row">
+              <label class="form__field">
+                <span>Дата</span>
+                <input type="text" name="date" inputmode="numeric" autocomplete="off" placeholder="дд.мм.гггг" maxlength="10">
+              </label>
+              <label class="form__field form__field--narrow">
+                <span>Гостей</span>
+                <input type="number" name="guests" min="5" max="300" placeholder="от 10">
+              </label>
+            </div>
+            <div class="form__row">
+              <label class="form__field">
+                <span>Тип мероприятия</span>
+                <select name="event_type">
+                  <option value="">Пока не определились</option>
+                  <option>День рождения</option>
+                  <option>Корпоратив</option>
+                  <option>Девичник / мальчишник</option>
+                  <option>Свадьба / юбилей</option>
+                  <option>Другое</option>
+                </select>
+              </label>
+              <label class="form__field">
+                <span>Формат</span>
+                <select name="hall">
+                  <option value="">Не важно — предложите вариант</option>
+                  <option>Часть общего зала</option>
+                  <option>Отдельная VIP-зона</option>
+                  <option>Весь клуб целиком</option>
+                </select>
+              </label>
+            </div>
+            <label class="form__field">
+              <span>Пожелания</span>
+              <textarea name="comment" rows="3" placeholder="Программа, кальян, меню, особые пожелания"></textarea>
+            </label>
+
+            <div class="form__actions">
+              <button type="submit" class="btn btn--primary">Отправить заявку</button>
+              <a href="tel:+79261777111" class="btn btn--ghost">Позвонить: +7 (926) 177-71-11</a>
+            </div>
+            <p class="form__hint" id="banquetHint"></p>
+          </form>
+          </div>
         </div>
 
         <div class="booking__info" data-reveal>

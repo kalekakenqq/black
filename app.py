@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
+import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -20,6 +21,9 @@ MSK = timezone(timedelta(hours=3))
 
 ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASS = os.environ.get("ADMIN_PASS", "blackred2026")
+
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
 app = FastAPI()
 security = HTTPBasic()
@@ -36,6 +40,21 @@ def get_db() -> sqlite3.Connection:
             user_agent TEXT,
             referer TEXT,
             path TEXT
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS banquet_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT NOT NULL,
+            name TEXT,
+            phone TEXT,
+            event_type TEXT,
+            event_date TEXT,
+            guests TEXT,
+            hall TEXT,
+            comment TEXT
         )
         """
     )
@@ -90,6 +109,65 @@ async def index(request: Request):
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return FileResponse(str(BASE_DIR / "images" / "favicon.ico"))
+
+
+async def notify_telegram(text: str) -> None:
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": text})
+    except Exception:
+        pass
+
+
+def clip(value, max_len: int) -> str:
+    return str(value or "").strip()[:max_len]
+
+
+@app.post("/api/banquet")
+async def banquet_request(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Некорректный запрос")
+
+    name = clip(data.get("name"), 100)
+    phone = clip(data.get("phone"), 40)
+    event_type = clip(data.get("event_type"), 60)
+    event_date = clip(data.get("date"), 40)
+    guests = clip(data.get("guests"), 20)
+    hall = clip(data.get("hall"), 60)
+    comment = clip(data.get("comment"), 600)
+
+    if not name or not phone:
+        raise HTTPException(status_code=422, detail="Укажите имя и телефон")
+
+    ts = datetime.now(timezone.utc).isoformat()
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO banquet_requests (ts, name, phone, event_type, event_date, guests, hall, comment)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (ts, name, phone, event_type, event_date, guests, hall, comment),
+    )
+    conn.commit()
+    conn.close()
+
+    lines = ["Новая заявка на банкет / аренду зала — Black & Red", f"Имя: {name}", f"Телефон: {phone}"]
+    if event_type:
+        lines.append(f"Тип события: {event_type}")
+    if event_date:
+        lines.append(f"Дата: {event_date}")
+    if guests:
+        lines.append(f"Гостей: {guests}")
+    if hall:
+        lines.append(f"Формат: {hall}")
+    if comment:
+        lines.append(f"Комментарий: {comment}")
+    await notify_telegram("\n".join(lines))
+
+    return {"ok": True}
 
 
 def parse_device(ua: str) -> str:
@@ -260,6 +338,12 @@ async def admin(user: str = Depends(check_auth)):
     recent = conn.execute(
         "SELECT ts, ip, user_agent, referer FROM visits ORDER BY id DESC LIMIT 20"
     ).fetchall()
+
+    # Recent banquet requests
+    banquets = conn.execute(
+        """SELECT ts, name, phone, event_type, event_date, guests, hall, comment
+           FROM banquet_requests ORDER BY id DESC LIMIT 20"""
+    ).fetchall()
     conn.close()
 
     recent_rows = ""
@@ -276,6 +360,22 @@ async def admin(user: str = Depends(check_auth)):
         )
     if not recent_rows:
         recent_rows = "<tr><td colspan='4' class='empty'>Пока нет визитов</td></tr>"
+
+    banquet_rows = ""
+    for ts, name, phone, event_type, event_date, guests, hall, comment in banquets:
+        dt = datetime.fromisoformat(ts).astimezone(MSK)
+        details = " · ".join(
+            x for x in [event_type, event_date, f"{guests} гостей" if guests else "", hall] if x
+        )
+        banquet_rows += (
+            f"<tr><td>{dt.strftime('%d.%m %H:%M')}</td>"
+            f"<td>{html.escape(name)}</td>"
+            f"<td>{html.escape(phone)}</td>"
+            f"<td>{html.escape(details)}</td>"
+            f"<td class='src'>{html.escape(comment)}</td></tr>"
+        )
+    if not banquet_rows:
+        banquet_rows = "<tr><td colspan='5' class='empty'>Заявок пока нет</td></tr>"
 
     hour_bars = "".join(
         f'<div class="bar" style="height:{max(int(h / max_hour * 100), 2 if h else 0)}%" title="{i}:00 — {h}"></div>'
@@ -433,6 +533,14 @@ async def admin(user: str = Depends(check_auth)):
     <table>
       <thead><tr><th>Время (МСК)</th><th>Устройство</th><th>Браузер</th><th>Источник</th></tr></thead>
       <tbody>{recent_rows}</tbody>
+    </table>
+  </div>
+
+  <div class="panel" style="margin-top: 18px;">
+    <h2>Заявки на банкеты / аренду зала</h2>
+    <table>
+      <thead><tr><th>Время (МСК)</th><th>Имя</th><th>Телефон</th><th>Детали</th><th>Комментарий</th></tr></thead>
+      <tbody>{banquet_rows}</tbody>
     </table>
   </div>
 </body>

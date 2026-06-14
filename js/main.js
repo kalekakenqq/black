@@ -80,6 +80,29 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  /* ---------- Booking tabs ---------- */
+  const btabs = document.querySelectorAll('.booking__tab');
+  const bpanels = document.querySelectorAll('.booking__panel');
+
+  btabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.btab;
+
+      btabs.forEach(t => {
+        t.classList.toggle('is-active', t === tab);
+        t.setAttribute('aria-selected', String(t === tab));
+      });
+
+      bpanels.forEach(panel => {
+        if (panel.dataset.bpanel === target) {
+          panel.removeAttribute('hidden');
+        } else {
+          panel.setAttribute('hidden', '');
+        }
+      });
+    });
+  });
+
   /* ---------- Gallery lightbox ---------- */
   const galleryItems = Array.from(document.querySelectorAll('.gallery__item'));
   const lightbox = document.getElementById('lightbox');
@@ -161,14 +184,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const formHint = document.getElementById('formHint');
   const WHATSAPP_NUMBER = '79261777111';
 
+  const maskDate = (value) => {
+    const digits = value.replace(/\D/g, '').slice(0, 8);
+    return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)]
+      .filter(Boolean).join('.');
+  };
+
   if (bookingForm) {
     const dateInput = bookingForm.querySelector('[name="date"]');
-
-    const maskDate = (value) => {
-      const digits = value.replace(/\D/g, '').slice(0, 8);
-      return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)]
-        .filter(Boolean).join('.');
-    };
 
     if (dateInput) {
       dateInput.addEventListener('input', () => {
@@ -211,6 +234,62 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (formHint) {
         formHint.textContent = 'Открываем WhatsApp с готовой заявкой — просто нажмите «Отправить».';
+      }
+    });
+  }
+
+  /* ---------- Banquet / hall request -> backend + Telegram ---------- */
+  const banquetForm = document.getElementById('banquetForm');
+  const banquetHint = document.getElementById('banquetHint');
+
+  if (banquetForm) {
+    const dateInput = banquetForm.querySelector('[name="date"]');
+    if (dateInput) {
+      dateInput.addEventListener('input', () => {
+        dateInput.value = maskDate(dateInput.value);
+      });
+    }
+
+    banquetForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const data = new FormData(banquetForm);
+      const payload = {
+        name: (data.get('name') || '').toString().trim(),
+        phone: (data.get('phone') || '').toString().trim(),
+        date: (data.get('date') || '').toString().trim(),
+        guests: (data.get('guests') || '').toString().trim(),
+        event_type: (data.get('event_type') || '').toString(),
+        hall: (data.get('hall') || '').toString(),
+        comment: (data.get('comment') || '').toString().trim(),
+      };
+
+      if (!payload.name || !payload.phone) {
+        if (banquetHint) banquetHint.textContent = 'Заполните имя и телефон.';
+        return;
+      }
+      if (payload.date && !/^\d{2}\.\d{2}\.\d{4}$/.test(payload.date)) {
+        if (banquetHint) banquetHint.textContent = 'Проверьте формат даты (дд.мм.гггг).';
+        return;
+      }
+
+      if (banquetHint) banquetHint.textContent = 'Отправляем заявку…';
+
+      try {
+        const res = await fetch('/api/banquet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error('request failed');
+        banquetForm.reset();
+        if (banquetHint) {
+          banquetHint.textContent = 'Заявка отправлена! Мы свяжемся с вами в ближайшее время.';
+        }
+      } catch (err) {
+        if (banquetHint) {
+          banquetHint.textContent = 'Не получилось отправить — позвоните нам или напишите в WhatsApp.';
+        }
       }
     });
   }

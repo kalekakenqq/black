@@ -903,11 +903,35 @@ input, textarea {
 }
 
 .booking__form {
-  margin-top: 2em;
+  margin-top: 1.6em;
   display: flex;
   flex-direction: column;
   gap: 1.2em;
 }
+
+.booking__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin: 1.6em 0 0;
+}
+.booking__tab {
+  padding: .8em 1.8em;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-weight: 700;
+  font-size: .9rem;
+  letter-spacing: .04em;
+  color: var(--text-dim);
+  transition: all .3s var(--ease);
+}
+.booking__tab.is-active {
+  background: linear-gradient(135deg, var(--red-bright), var(--red-deep));
+  color: var(--cream);
+  border-color: transparent;
+}
+.booking__panel[hidden] { display: none; }
+
 .form__row {
   display: flex;
   gap: 1.2em;
@@ -924,19 +948,31 @@ input, textarea {
 }
 .form__field--narrow { flex: .55; }
 .form__field input,
-.form__field textarea {
+.form__field textarea,
+.form__field select {
   background: var(--bg-card);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: .85em 1em;
   color: var(--text);
   font-weight: 500;
+  font-family: inherit;
+  font-size: 1rem;
   transition: border-color .25s;
+  appearance: none;
 }
+.form__field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6l4 4 4-4' stroke='%23cda653' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1em center;
+  padding-right: 2.6em;
+}
+.form__field select option { background: var(--bg-card); color: var(--text); }
 .form__field input::placeholder,
 .form__field textarea::placeholder { color: var(--text-muted); }
 .form__field input:focus,
-.form__field textarea:focus {
+.form__field textarea:focus,
+.form__field select:focus {
   outline: none;
   border-color: var(--gold);
 }
