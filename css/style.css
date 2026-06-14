@@ -1108,7 +1108,7 @@ input, textarea {
     color: var(--gold);
     font-weight: 700;
   }
-  .header__phone { display: none; }
+  .header__actions { display: none; }
   .nav-toggle { display: flex; }
   .fab { display: flex; }
 }
