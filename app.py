@@ -1,3 +1,4 @@
+import html
 import os
 import secrets
 import sqlite3
@@ -158,6 +159,7 @@ async def admin(user: str = Depends(check_auth)):
         device = parse_device(ua)
         browser = parse_browser(ua)
         source = ref if ref else "напрямую"
+        source = html.escape(source[:200])
         recent_rows += (
             f"<tr><td>{dt.strftime('%d.%m %H:%M')}</td>"
             f"<td>{device}</td><td>{browser}</td>"
@@ -176,7 +178,7 @@ async def admin(user: str = Depends(check_auth)):
     )
     day_labels = "".join(f"<span>{d}</span>" for d, _ in days)
 
-    html = f"""<!DOCTYPE html>
+    page_html = f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -275,4 +277,4 @@ async def admin(user: str = Depends(check_auth)):
   </div>
 </body>
 </html>"""
-    return HTMLResponse(html)
+    return HTMLResponse(page_html)
