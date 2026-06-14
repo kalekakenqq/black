@@ -1111,6 +1111,7 @@ input, textarea {
   .header__actions { display: none; }
   .nav-toggle { display: flex; }
   .fab { display: flex; }
+  .footer__bottom { padding-bottom: 100px; }
 }
 
 @media (max-width: 720px) {
