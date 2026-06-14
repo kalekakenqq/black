@@ -60,8 +60,12 @@ def log_visit(request: Request, path: str) -> None:
 
 
 def check_auth(credentials: HTTPBasicCredentials = Depends(security)) -> str:
-    ok_user = secrets.compare_digest(credentials.username, ADMIN_USER)
-    ok_pass = secrets.compare_digest(credentials.password, ADMIN_PASS)
+    ok_user = secrets.compare_digest(
+        credentials.username.encode("utf-8"), ADMIN_USER.encode("utf-8")
+    )
+    ok_pass = secrets.compare_digest(
+        credentials.password.encode("utf-8"), ADMIN_PASS.encode("utf-8")
+    )
     if not (ok_user and ok_pass):
         raise HTTPException(
             status_code=401,
@@ -80,6 +84,11 @@ app.mount("/images", StaticFiles(directory=str(BASE_DIR / "images")), name="imag
 async def index(request: Request):
     log_visit(request, "/")
     return FileResponse(str(BASE_DIR / "index.html"))
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse(str(BASE_DIR / "images" / "favicon.ico"))
 
 
 def parse_device(ua: str) -> str:
