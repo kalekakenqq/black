@@ -132,28 +132,54 @@ document.addEventListener('DOMContentLoaded', () => {
   const WHATSAPP_NUMBER = '79261777111';
 
   if (bookingForm) {
+    const dateInput = bookingForm.querySelector('[name="date"]');
+    const timeInput = bookingForm.querySelector('[name="time"]');
+
+    const maskDate = (value) => {
+      const digits = value.replace(/\D/g, '').slice(0, 8);
+      return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)]
+        .filter(Boolean).join('.');
+    };
+    const maskTime = (value) => {
+      const digits = value.replace(/\D/g, '').slice(0, 4);
+      return [digits.slice(0, 2), digits.slice(2, 4)]
+        .filter(Boolean).join(':');
+    };
+
+    if (dateInput) {
+      dateInput.addEventListener('input', () => {
+        dateInput.value = maskDate(dateInput.value);
+      });
+    }
+    if (timeInput) {
+      timeInput.addEventListener('input', () => {
+        timeInput.value = maskTime(timeInput.value);
+      });
+    }
+
     bookingForm.addEventListener('submit', (e) => {
       e.preventDefault();
 
       const data = new FormData(bookingForm);
       const name = (data.get('name') || '').toString().trim();
       const phone = (data.get('phone') || '').toString().trim();
-      const date = (data.get('date') || '').toString();
-      const time = (data.get('time') || '').toString();
+      const date = (data.get('date') || '').toString().trim();
+      const time = (data.get('time') || '').toString().trim();
       const guests = (data.get('guests') || '').toString();
       const comment = (data.get('comment') || '').toString().trim();
 
-      let dateLabel = date;
-      if (date) {
-        const [y, m, d] = date.split('-');
-        if (y && m && d) dateLabel = `${d}.${m}.${y}`;
+      if (!/^\d{2}\.\d{2}\.\d{4}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
+        if (formHint) {
+          formHint.textContent = 'Проверьте формат даты (дд.мм.гггг) и времени (чч:мм).';
+        }
+        return;
       }
 
       const lines = [
         'Здравствуйте! Хочу забронировать стол в Black & Red.',
         `Имя: ${name}`,
         `Телефон: ${phone}`,
-        `Дата: ${dateLabel}`,
+        `Дата: ${date}`,
         `Время: ${time}`,
         `Количество гостей: ${guests}`,
       ];
