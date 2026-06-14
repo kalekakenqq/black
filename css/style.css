@@ -572,16 +572,6 @@ input, textarea {
   gap: 22px;
   margin-top: 2.5em;
 }
-.cards-grid--4 { grid-template-columns: repeat(2, 1fr); }
-
-.event-time {
-  display: block;
-  margin-top: 1em;
-  font-size: .8rem;
-  letter-spacing: .1em;
-  font-weight: 700;
-  color: var(--gold-soft);
-}
 
 .card {
   position: relative;
@@ -703,7 +693,7 @@ input, textarea {
   color: var(--text-muted);
 }
 
-.menu__note, .section-note {
+.menu__note {
   text-align: center;
   margin: 2.6em auto 0;
   max-width: 480px;
@@ -714,11 +704,6 @@ input, textarea {
 /* ==========================================================================
    Gallery
    ========================================================================== */
-
-.afisha {
-  padding: var(--section-pad) 0;
-  background: var(--bg-soft);
-}
 
 .gallery {
   padding: var(--section-pad) 0;
