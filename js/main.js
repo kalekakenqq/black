@@ -126,6 +126,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'ArrowRight') openLightbox(currentIndex + 1);
   });
 
+  /* ---------- FAQ accordion ---------- */
+  document.querySelectorAll('.faq__item').forEach((item) => {
+    const question = item.querySelector('.faq__question');
+    const answer = item.querySelector('.faq__answer');
+    question.addEventListener('click', () => {
+      const isOpen = item.classList.contains('is-open');
+      if (isOpen) {
+        item.classList.remove('is-open');
+        question.setAttribute('aria-expanded', 'false');
+        answer.style.maxHeight = '0px';
+      } else {
+        item.classList.add('is-open');
+        question.setAttribute('aria-expanded', 'true');
+        answer.style.maxHeight = answer.scrollHeight + 'px';
+      }
+    });
+  });
+
   /* ---------- Hide FAB over footer ---------- */
   const fab = document.querySelector('.fab');
   const footer = document.querySelector('.footer');
