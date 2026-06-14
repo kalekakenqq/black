@@ -627,8 +627,9 @@ input, textarea {
 
 .menu__tabs {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 12px;
+  gap: 10px 12px;
   margin-bottom: 2.6em;
 }
 .menu__tab {
